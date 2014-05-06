@@ -2,6 +2,7 @@
 #include<cstdio>
 #include<cstdlib>
 #include<cstring>
+#include<dirent.h>
 #include<arpa/inet.h>
 #include<pthread.h>
 #include<errno.h>
@@ -13,10 +14,9 @@ using namespace std;
 #ifdef MYDBG
 #define dbgprint(...) printf(__VA_ARGS__)
 #else
-#define dbgprint(x)
+#define dbgprint(...)
 #endif  
 
-char hello[]="HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 20\r\n\r\nHello !中文Are you fine?\n";
 
 //the command of http protocol
 #define HTTP_NOCMD	0
@@ -25,6 +25,8 @@ char hello[]="HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 20\r\n\r\n
 
 #define URL_LEN		1024
 #define BUFFLEN		4096
+#define MAXCONTENTBUFF	1*1024*1024
+#define MAXCONTENTDATA  100*1024*1024
 
 class Http
 {
@@ -34,17 +36,91 @@ public:
 	void RecvHttp();
 	int Input(char msg[],int len);
 	int Response();
+	int GetWeb();
+	int GetCmd();
 
 private:
 	int socket;
 	sockaddr_in client_addr;
 	int cmd;
 	char url[URL_LEN];
+	char *content;
+	int contentlen;
 
 };
 
-Http::Http(int sock,sockaddr_in clientaddr):socket(sock),client_addr(clientaddr),cmd(HTTP_NOCMD)
+Http::Http(int sock,sockaddr_in clientaddr):socket(sock),client_addr(clientaddr),cmd(HTTP_NOCMD),content(NULL),contentlen(0)
 {
+}
+
+int Http::GetWeb()
+{
+	char filename[PATH_MAX]="webs";
+	int i,j;
+	
+	j=strlen(filename);
+	for(i=0;i<strlen(url);i++)
+	{
+		if(url[i]=='?') break;
+	
+		if(url[i]=='.' && url[i+1]=='.')
+		{
+			printf("WARNING: Illegal file name in url [%s]\n",url);		//This is an url attempt to read file without permission
+			strcpy(filename,"webs/error.htm");		//No matter what the url is ,tell the client this page does not exist
+			j=strlen(filename);
+			break;		
+		}
+	
+		filename[j]=url[i];
+		j++;
+	}
+	filename[j]=0;
+	filename[j+1]=0;
+	if(strcmp(filename,"webs/")==0)	//the default web page
+	{
+		strcpy(filename,"webs/index.htm");
+	}
+	
+	FILE *fp=fopen(filename,"rb");
+	if(!fp)
+	{
+		dbgprint("Cannot find file %s\n",filename);
+		strcpy(filename,"webs/error.htm");	//return the default error page
+		
+		fp=fopen(filename,"rb");
+		if(!fp)
+		{
+			printf("open %s fail\n",filename);
+			return 3;
+		}
+	}
+	fseek(fp,0,SEEK_END);
+	int flen=ftell(fp);		//get the length of the web page
+	fseek(fp,0,SEEK_SET);
+	char buff[BUFFLEN];
+	sprintf(buff,"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: %d\r\n\r\n",flen);
+	if(send(socket,buff,strlen(buff),0)==-1)	//send http head to client
+	{
+		printf("Send Error\n");
+		pthread_exit((void *)1);
+	}
+	int size;
+	while((size=fread(buff,sizeof(char),BUFFLEN,fp))>0)	//send data to client
+	{
+		if(send(socket,buff,size,0)==-1)
+		{
+			printf("Send Error\n");
+			pthread_exit((void *)1);
+		}				
+	}
+	fclose(fp);
+	return 0;
+}
+
+int Http::GetCmd()
+{
+	printf("Command not finished\n");
+	return 0;
 }
 
 int Http::Input(char msg[],int len)
@@ -62,21 +138,52 @@ int Http::Input(char msg[],int len)
 			char buff4[URL_LEN]="";
 			int argc;
 			msg[i]=0;
-			if((argc=sscanf(msg+start,"%s%s%s%s",buff1,buff2,buff3,buff4)) >0)	//get command
+			if((argc=sscanf(msg+start,"%s%s%s%s",buff1,buff2,buff3,buff4)) >0)	//get method from message
 			{
 				dbgprint("CMD agrc=%d\n[1]%s[2]%s[3]%s[4]%s[]\n",argc,buff1,buff2,buff3,buff4);
 				if(strcmp(buff1,"GET")==0)
 				{
 					if(argc>=2)
 					{
-						cmd=HTTP_GET;	//the is the get command
+						cmd=HTTP_GET;	//the is the GET method
 						strcpy(url,buff2);	//the url to get
 					}
-					else return 1;
+					else
+					{
+						printf("GET params not enough\n");
+						return 1;
+					}
 				}
-				
-				
-				
+				else if(strcmp(buff1,"POST")==0)	//POST method
+				{
+					if(argc>=2)
+					{
+						cmd=HTTP_GET;	//the is the POST method
+						strcpy(url,buff2);	//the url to get
+					}
+					else
+					{
+						printf("POST params not enough\n");
+						return 1;
+					}
+				}
+				else if(strcmp(buff1,"Content-Length:")==0)
+				{
+					if(argc>=2)
+					{
+						sscanf(buff2,"%d",&contentlen);		//get the length of content data
+						if(contentlen<0)
+						{
+							printf("Content-Length format wrong\n");
+							return 2;
+						}
+					}
+					else
+					{
+						printf("Content-Length: params not enough\n");
+						return 1;
+					}
+				}
 			}
 			start=i+2;
 			i++;
@@ -90,40 +197,19 @@ int Http::Response()
 	{
 		case HTTP_GET:
 		{
-			if(!strcmp(url,"/") || !strcmp(url,"/index.htm") || !strcmp(url,"/index.html"))
-			{	//return the default web page
-				FILE *fp=fopen("webs/index.htm","rb");
-				if(!fp)
-				{
-					dbgprint("open webs/index.htm fail\n");
-					return 3;
-				}
-				fseek(fp,0,SEEK_END);
-				int flen=ftell(fp);
-				fseek(fp,0,SEEK_SET);
-				char buff[BUFFLEN];
-				sprintf(buff,"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: %d\r\n\r\n",flen);
-				if(send(socket,buff,strlen(buff),0)==-1)
-				{
-					printf("Send Error\n");
-					pthread_exit((void *)1);
-				}
-				int size;
-				while((size=fread(buff,sizeof(char),BUFFLEN,fp))>0)
-				{
-					if(send(socket,buff,size,0)==-1)
-					{
-						printf("Send Error\n");
-						pthread_exit((void *)1);
-					}				
-				}
-				fclose(fp);
-				return 0;				
+			if(strncmp(url,"/cmd?",5)==0)
+			{
+				GetCmd();
+			}
+			else
+			{
+				GetWeb();
 			}
 			break;
 		}
 		case HTTP_POST:
 		{
+			GetWeb();
 			break;
 		}
 		case HTTP_NOCMD:
@@ -143,11 +229,6 @@ int Http::Response()
 void Http::PrintAddr()
 {
 	printf("socket=%d\nclient=[%s:%d]\n",socket,inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
-	if(send(socket,hello,strlen(hello),0)==-1)
-	{
-		printf("Send Error\n");
-		pthread_exit((void *)1);
-	}
 }
 
 
@@ -199,12 +280,73 @@ void Http::RecvHttp()
 	}
 	buff[headlen]=0;
 	dbgprint("[MSG]\n%s\n",buff);
-	if(Input(buff,headlen)!=0)
+	if(Input(buff,headlen)!=0)		//analyse http header and get information
 	{
 		printf("HTTP HEAD ERROR, Disconnect with [%s:%d]\n",inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
 		close(socket);
 		return;
 	}
+	//get the content of http
+	if(contentlen>0)
+	{
+		//receive content data
+		if(contentlen<=MAXCONTENTBUFF)
+		{
+			if(content) delete content;
+			content=new char[contentlen];
+			if(!content)
+			{
+				printf("Malloc memory for content failed\n");
+				close(socket);
+				return;
+			}
+			dbgprint("start_search=%d\nstart_buff=%d\n",start_search,start_buff);
+			
+			start_buff=start_buff-start_search;
+			if(start_buff<0)
+			{
+				dbgprint("start_buff errror\n");
+				return;
+			}
+			
+			if(start_buff>0)
+			{
+				
+				memcpy(content,buff+start_search,start_buff);
+			}
+			content[start_buff]=0;
+			while(start_buff<contentlen)
+			{
+				len=recv(socket, content+start_buff, contentlen-start_buff, 0);		//receive data from client			
+				if(len>0)
+				{
+					start_buff+=len;	//update content length
+					content[start_buff]=0;
+				}
+				else
+				{
+					printf("Err:Socket is closed, content ont enough, total len=%d [%s:%d]\n",start_buff,inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
+					close(socket);
+					pthread_exit((void *)1);			
+				}
+			}
+		}
+		else if(contentlen<=MAXCONTENTDATA)
+		{
+			dbgprint("Content is long, ignore\n");
+			close(socket);
+			return;
+		}
+		else
+		{
+			dbgprint("Content is too long\n");
+			close(socket);
+			return;
+		}
+		
+	}
+	dbgprint("[CONTENT]\n%s\n",content);
+	
 	if(Response()!=0)		//response to the client according to the command
 	{
 		printf("Response failed to [%s:%d]\n",inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
