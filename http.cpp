@@ -395,7 +395,137 @@ void *thread_http(void *arg)
 	return 0;
 }
 
-int main(int argc, char *argv[])
+
+class Data
+{
+public:
+	Data();
+	~Data();
+	void DeleteData();			//Delete Data and free memory
+	int SetData(int num,...);	//Set Data,format is Setdata(num,[length_0,dat_0],...,[length_(num-1),dat_(num-1)]);
+	
+	int NumOfCells;		//Number of data cells
+	char **Cells;		//array to store the address of each data cell
+	int *LenOfCell;		//array to store the length of each data cell
+	
+	bool Dirty;			//show if the data should be dump to files
+	Data *Next;			//the pointer of next data line
+};
+
+Data::Data():NumOfCells(0),Cells(NULL),LenOfCell(NULL),Dirty(0),Next(NULL)
+{
+}
+Data::~Data()
+{
+	DeleteData();
+}
+void Data::DeleteData()
+{
+	int i;
+	if(NumOfCells)
+	{
+		for(i=0;i<NumOfCells;i++)
+			if(LenOfCell[i]) delete []Cells[i];		//delete data cells which are not empty
+		delete []Cells;			//delete the array to save the address of cells
+		delete []LenOfCell;		//delete the array to save the length of cells
+		//set all to empty
+		NumOfCells=0;
+		Cells=NULL;
+		LenOfCell=NULL;
+	}
+}
+int Data::SetData(int num,...)
+{
+	void *args;
+	args=(void *)(&num + 1);
+	if(num<1)
+	{
+		printf("SetData params not enough\n");
+		return 1;
+	}
+	
+	if(Cells) delete []Cells;
+	if(LenOfCell) delete []LenOfCell;
+	
+	Cells=new char*[num];
+	if(!Cells)
+	{
+		printf("SetData alloc data for Cells failed\n");
+		NumOfCells=0;
+		return 2;
+	}
+	LenOfCell=new int[num];
+	if(!LenOfCell)
+	{
+		printf("SetData alloc data for LengthOfCell failed\n");
+		delete []Cells;
+		Cells=NULL;
+		NumOfCells=0;
+		return 2;
+	}
+	NumOfCells=num;			//set NumOfCells
+	int i;
+	for(i=0;i<num;i++)		//Set LengthOfCell to 0, to enable DeleteData() function
+		LenOfCell[i]=0;
+	
+	for(i=0;i<num;i++)
+	{	//get all the params and alloc memory
+		int size;
+		char *dat;
+		size=*((int *)args);
+		args=((int*)args)+1;
+		dat=*(char **)args;
+		args=((char**)args)+1;
+		
+		if(size<0)
+		{
+			printf("SetData param [%d] error\n",i);
+			int j;
+			DeleteData();
+			return 3;			
+		}
+		else if(size==0)
+		{	//This is an empty cell
+			LenOfCell[i]=0;
+			Cells[i]=NULL;
+		}
+		else
+		{
+			Cells[i]=new char[size];
+			if(!Cells[i])
+			{
+				printf("SetData alloc memory for Cells[%d] failed\n",i);
+				DeleteData();
+				return 2;
+			}
+			LenOfCell[i]=size;
+			memcpy(Cells[i],dat,size);	//set data
+		}
+	}
+	return 0;
+}
+
+class Database
+{
+public:
+
+
+private:
+};
+
+int main()
+{
+	Data d1;
+	int i;
+	for(i=0;i<d1.NumOfCells;i++)
+	{
+		printf("[%d] len=%d dat=[%s]\n",i,d1.LenOfCell[i],d1.Cells[i]);
+	}
+	
+	return 0;
+}
+
+int main_t(int argc, char *argv[])
 {
 	int portnumber=80;
 	if(argc>=2)
