@@ -516,6 +516,7 @@ private:
 int main()
 {
 	Data d1;
+	d1.SetData(3,4,"ABC",4,"123",3,"Ad");
 	int i;
 	for(i=0;i<d1.NumOfCells;i++)
 	{
