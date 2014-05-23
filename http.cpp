@@ -3,6 +3,7 @@
 #include<cstdlib>
 #include<cstring>
 #include<dirent.h>
+#include<sys/stat.h>
 #include<arpa/inet.h>
 #include<pthread.h>
 #include<errno.h>
@@ -400,10 +401,13 @@ class Data
 {
 public:
 	Data();
+	Data(const Data &dat);
 	~Data();
 	void DeleteData();			//Delete Data and free memory
-	int SetData(int num,...);	//Set Data,format is Setdata(num,[length_0,dat_0],...,[length_(num-1),dat_(num-1)]);
-	
+	int SetData(int num,...);	//Set Data,format is Setdata(num,[length_0,dat_0],...,[length_(num-1),dat_(num-1)]), return 0 if succeed.
+	int AddCell(int len,char *dat);	//Add a cell whose data is dat,return 0 if succeed;
+	int DumpData(char *libname);	//dump data to file, return 0 if succeed
+		
 	int NumOfCells;		//Number of data cells
 	char **Cells;		//array to store the address of each data cell
 	int *LenOfCell;		//array to store the length of each data cell
@@ -415,9 +419,53 @@ public:
 Data::Data():NumOfCells(0),Cells(NULL),LenOfCell(NULL),Dirty(0),Next(NULL)
 {
 }
+Data::Data(const Data & dat)
+{
+	NumOfCells=dat.NumOfCells;
+	Dirty=dat.Dirty;
+	Next=NULL;		//This pointer is not copied to prevent error
+	
+	if(NumOfCells)
+	{
+		Cells=new char *[NumOfCells];
+		LenOfCell=new int[NumOfCells];
+		int i;
+		for(i=0;i<NumOfCells;i++)
+		{
+			LenOfCell[i]=dat.LenOfCell[i];
+			Cells[i]=new char[LenOfCell[i]];
+			memcpy(Cells[i],dat.Cells[i],LenOfCell[i]);
+		}
+	}
+}
 Data::~Data()
 {
 	DeleteData();
+}
+int Data::DumpData(char *libname)
+{
+	char filepath[PATH_MAX];
+	char filename[PATH_MAX];
+	
+	Dirty=0;	
+	if(NumOfCells<=0)
+	{
+		printf("Empty cell, dump failed\n");
+		return 1;
+	}
+	memcpy(filename,Cells[0],LenOfCell[0]);
+	filename[LenOfCell[0]]=0;
+	sprintf(filepath,"./database/%s/%s",libname,filename);
+	
+	FILE *fp=fopen(filepath,"wb");
+	int i;
+	for(i=1;i<NumOfCells;i++)
+	{
+		fwrite(&LenOfCell[i],sizeof(int),1,fp);
+		fwrite(Cells[i],sizeof(char),LenOfCell[i],fp);
+	}
+	fclose(fp);
+	return 0;
 }
 void Data::DeleteData()
 {
@@ -434,6 +482,31 @@ void Data::DeleteData()
 		LenOfCell=NULL;
 	}
 }
+int Data::AddCell(int len,char *dat)
+{
+	dbgprint("AddCell len=%d dat=%s\n",len,dat);
+	
+	int num=NumOfCells+1;
+	char **CellsNew=new char*[num];
+	int *LenOfCellNew=new int[num];
+	int i;
+	for(i=0;i<NumOfCells;i++)
+	{	//Copy existing data
+		LenOfCellNew[i]=LenOfCell[i];
+		CellsNew[i]=new char[LenOfCell[i]];
+		memcpy(CellsNew[i],Cells[i],LenOfCell[i]);
+	}
+	//set new data
+	LenOfCellNew[NumOfCells]=len;
+	CellsNew[NumOfCells]=new char[len];
+	memcpy(CellsNew[NumOfCells],dat,len);
+	//Free memory and Point data pointer to new memory
+	DeleteData();
+	NumOfCells=num;
+	Cells=CellsNew;
+	LenOfCell=LenOfCellNew;
+	return 0;
+}
 int Data::SetData(int num,...)
 {
 	void *args;
@@ -444,8 +517,7 @@ int Data::SetData(int num,...)
 		return 1;
 	}
 	
-	if(Cells) delete []Cells;
-	if(LenOfCell) delete []LenOfCell;
+	DeleteData();	//Clear existing data
 	
 	Cells=new char*[num];
 	if(!Cells)
@@ -457,7 +529,7 @@ int Data::SetData(int num,...)
 	LenOfCell=new int[num];
 	if(!LenOfCell)
 	{
-		printf("SetData alloc data for LengthOfCell failed\n");
+		printf("SetData alloc data for LenOfCell failed\n");
 		delete []Cells;
 		Cells=NULL;
 		NumOfCells=0;
@@ -465,7 +537,7 @@ int Data::SetData(int num,...)
 	}
 	NumOfCells=num;			//set NumOfCells
 	int i;
-	for(i=0;i<num;i++)		//Set LengthOfCell to 0, to enable DeleteData() function
+	for(i=0;i<num;i++)		//Set LenOfCell to 0, to enable DeleteData() function
 		LenOfCell[i]=0;
 	
 	for(i=0;i<num;i++)
@@ -505,23 +577,274 @@ int Data::SetData(int num,...)
 	return 0;
 }
 
+class Library
+{
+public:
+	Library(const char *name);
+	~Library();
+	friend class Database;
+	Data *SearchData(int index,int len,char *dat);		//Look for data with content dat at the index cell,return NULL if not find
+	int AddData(const Data &dat);						//Add Data to library and alloc space to file, return 0 if succeed
+	
+private:
+	void DeleteLibrary();							//Delete library contents
+	int LoadLibrary();								//Load Library to memory, return 0 if succeed
+	Data * AddMemData(const Data &dat);				//Add data to Library, return the address of Data cell,return NULL if failed
+	
+	char *Name;		//Name of the library
+	Data *Head;		//Pointer of data head
+	Library *Next;	//Pointer of Next Library 
+
+};
+
+Library::Library(const char *name):Head(NULL),Next(NULL)
+{
+	Name=new char[strlen(name)+1];
+	strcpy(Name,name);
+}
+Library::~Library()
+{
+	DeleteLibrary();
+	if(Name) delete []Name;
+}
+void Library::DeleteLibrary()
+{
+	Data *p;
+	while(Head)
+	{
+		p=Head->Next;
+		delete Head;
+		Head=p;
+	}
+}
+Data *Library::SearchData(int index,int len,char *dat)
+{
+	Data *p=Head;
+	while(p)
+	{
+		if(index==0 &&p->NumOfCells>0)
+		{
+			char buff1[BUFFLEN],buff2[BUFFLEN];
+			memcpy(buff1,dat,len);
+			buff1[len]=0;
+			memcpy(buff2,p->Cells[0],p->LenOfCell[0]);
+			buff2[p->LenOfCell[0]]=0;
+			dbgprint("SearchData len=%d dat=%s cmplen=%d cmpdat=%s\n",len,buff1,p->LenOfCell[0],buff2);
+		}
+		
+		if(index < p->NumOfCells)
+			if(len == p->LenOfCell[index])
+				if(memcmp(dat,p->Cells[index],len)==0)
+					return p;
+		p=p->Next;
+	}
+	return NULL;
+}
+
+int Library::LoadLibrary()
+{
+	dbgprint("LoadLibrary %s\n",Name);
+	
+	char libpath[PATH_MAX];
+	sprintf(libpath,"./database/%s",Name);
+	
+	DIR *pdir=opendir(libpath);
+	if(!pdir)
+	{
+		printf("Open Library %s failed\n",Name);
+		return 1;
+	}
+	struct dirent *pent;
+	while((pent=readdir(pdir))!=NULL)
+	{
+		if(pent->d_type==DT_REG)
+		{
+			char filepath[PATH_MAX];
+			sprintf(filepath,"%s/%s",libpath,pent->d_name);
+			FILE*fp=fopen(filepath,"rb");
+			if(!fp)
+			{
+				printf("Open file %s failed\n",filepath);
+				return 2;
+			}
+			Data *pdata=new Data;
+			pdata->AddCell(strlen(pent->d_name),pent->d_name);		//we don not use unicode
+			int len;
+			char buff[BUFFLEN];
+			while(fread(&len,sizeof(len),1,fp))
+			{
+				if(!fread(buff,sizeof(char),len,fp))
+				{
+					printf("Read file %s failed\n",filepath);
+					delete pdata;
+					return 3;
+				}
+				pdata->AddCell(len,buff);
+				
+			}
+			fclose(fp);
+			if(pdata->NumOfCells<=0)
+			{
+				printf("Read file %s failed\n",filepath);
+					delete pdata;
+					return 3;
+			}
+			pdata->Next=Head;
+			Head=pdata;
+			dbgprint("Load data with key [%s] to lib [%s]\n",pent->d_name,Name);			
+		}
+	}
+	closedir(pdir);	
+	
+	return 0;
+}
+
+Data * Library::AddMemData(const Data &dat)
+{
+	Data *pdata=SearchData(0,dat.LenOfCell[0],dat.Cells[0]);
+	if(pdata)
+	{
+		char buff[BUFFLEN];
+		memcpy(buff,dat.Cells[0],dat.LenOfCell[0]);
+		buff[dat.LenOfCell[0]]=0;
+		printf("Data with key [%s] in Library [%s] already exists\n",buff,Name);
+		return NULL;
+	}
+	//Create data and add to library
+	pdata=new Data(dat);
+	pdata->Next=Head;
+	Head=pdata;
+	
+	pdata->Dirty=1;		//It is not written to file
+	
+	return pdata;
+}
+
+int Library::AddData(const Data &dat)
+{
+	Data *pdata=AddMemData(dat);
+	if(pdata==NULL) return 2;
+	return pdata->DumpData(Name);
+}
+
 class Database
 {
 public:
-
-
+	Database();
+	~Database();
+	int LoadDatabase();								//Load database to memory, return 0 if succeed
+	Library *SearchLibrary(const char *name);		//Search for library
+	int CreateLibrary(const char *name);			//Create a library with name and alloc space in disk, return 0 if succeed
 private:
+	void DeleteDatabase();
+	Library *Head;
 };
+
+Database::Database():Head(NULL)
+{
+}
+Database::~Database()
+{
+	DeleteDatabase();
+}
+void Database::DeleteDatabase()
+{
+	Library *p;
+	while(Head)
+	{
+		p=Head->Next;
+		delete Head;
+		Head=p;
+	}
+}
+
+Library *Database::SearchLibrary(const char *name)
+{
+	Library *p=Head;
+	while(p)
+	{
+		//dbgprint("SearchLibrary name=[%s] p->Name=[%s]\n",name,p->Name);
+		
+		if(strcmp(name,p->Name)==0) return p;
+		p=p->Next;
+	}
+	return NULL;
+}
+int Database::CreateLibrary(const char *name)
+{
+	Library *p=SearchLibrary(name);
+	if(p)
+	{
+		printf("Library %s already exists\n",name);
+		return 1;
+	}
+	//Create a library and add it to database
+	p=new Library(name);
+	p->Next=Head;
+	Head=p;
+	
+	char libpath[PATH_MAX];
+	sprintf(libpath,"./database/%s",name);
+	if(mkdir(libpath,0755))
+	{
+		printf("Create LibDir %s failed\n",name);
+		return 2;
+	}	
+	dbgprint("Create Library %s\n",name);
+	return 0;
+}
+
+int Database::LoadDatabase()
+{
+	DIR *pdir=opendir("./database");
+	if(!pdir)
+	{
+		printf("Open database failed\n");
+		return 1;
+	}
+	struct dirent *pent;
+	while((pent=readdir(pdir))!=NULL)
+	{
+		if(pent->d_name[0]=='.') continue;	//Current or upper level dir
+		if(pent->d_type==DT_DIR)
+		{
+			Library *plib=SearchLibrary(pent->d_name);
+			if(plib)
+			{
+				dbgprint("Error: Library %s already exists.\n",pent->d_name);
+				return 2;
+			}
+			//Create Library and load it
+			plib=new Library(pent->d_name);
+			plib->LoadLibrary();
+			
+			//Add library to database
+			plib->Next=Head;
+			Head=plib;
+		}
+	}
+	closedir(pdir);
+	return 0;
+}
 
 int main()
 {
+	
 	Data d1;
-	d1.SetData(3,4,"ABC",4,"123",3,"Ad");
+	d1.SetData(3,strlen("中文ABC")+1,"中文ABC",4,"123",3,"Ad");
 	int i;
 	for(i=0;i<d1.NumOfCells;i++)
 	{
 		printf("[%d] len=%d dat=[%s]\n",i,d1.LenOfCell[i],d1.Cells[i]);
 	}
+	
+	
+	Database db1;
+	
+	db1.LoadDatabase();
+	db1.CreateLibrary("test1");
+	db1.SearchLibrary("test1")->AddData(d1);
+	
 	
 	return 0;
 }
