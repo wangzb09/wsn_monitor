@@ -952,7 +952,7 @@ int main()
 	db1.SearchLibrary("test1")->DelData(0,5,"12345");
 	//db1.SearchLibrary("test1")->DelData(0,strlen("中文ABC"),"中文ABC");
 	
-	db1.DelLibrary("test1");
+	//db1.DelLibrary("test1");
 	
 	return 0;
 }
