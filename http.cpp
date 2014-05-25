@@ -403,11 +403,15 @@ public:
 	Data();
 	Data(const Data &dat);
 	~Data();
-	void DeleteData();			//Delete Data and free memory
+
 	int SetData(int num,...);	//Set Data,format is Setdata(num,[length_0,dat_0],...,[length_(num-1),dat_(num-1)]), return 0 if succeed.
 	int AddCell(int len,char *dat);	//Add a cell whose data is dat,return 0 if succeed;
 	int DumpData(char *libname);	//dump data to file, return 0 if succeed
-		
+
+	friend class Library;
+private:
+	void DeleteData();	//Delete Data and free memory
+			
 	int NumOfCells;		//Number of data cells
 	char **Cells;		//array to store the address of each data cell
 	int *LenOfCell;		//array to store the length of each data cell
@@ -583,8 +587,9 @@ public:
 	Library(const char *name);
 	~Library();
 	friend class Database;
-	Data *SearchData(int index,int len,char *dat);		//Look for data with content dat at the index cell,return NULL if not find
+	Data *SearchData(int index,int len,const char *dat);		//Look for data with content dat at the index cell,return NULL if not find
 	int AddData(const Data &dat);						//Add Data to library and alloc space to file, return 0 if succeed
+	int DelData(int index,int len,const char *dat);			//Delete data whose content at index is dat, and delete file, return 0 if succeed
 	
 private:
 	void DeleteLibrary();							//Delete library contents
@@ -617,21 +622,11 @@ void Library::DeleteLibrary()
 		Head=p;
 	}
 }
-Data *Library::SearchData(int index,int len,char *dat)
+Data *Library::SearchData(int index,int len,const char *dat)
 {
 	Data *p=Head;
 	while(p)
-	{
-		if(index==0 &&p->NumOfCells>0)
-		{
-			char buff1[BUFFLEN],buff2[BUFFLEN];
-			memcpy(buff1,dat,len);
-			buff1[len]=0;
-			memcpy(buff2,p->Cells[0],p->LenOfCell[0]);
-			buff2[p->LenOfCell[0]]=0;
-			dbgprint("SearchData len=%d dat=%s cmplen=%d cmpdat=%s\n",len,buff1,p->LenOfCell[0],buff2);
-		}
-		
+	{		
 		if(index < p->NumOfCells)
 			if(len == p->LenOfCell[index])
 				if(memcmp(dat,p->Cells[index],len)==0)
@@ -639,6 +634,57 @@ Data *Library::SearchData(int index,int len,char *dat)
 		p=p->Next;
 	}
 	return NULL;
+}
+
+int Library::DelData(int index,int len,const char *dat)
+{
+	if(!Head)
+	{
+		printf("Library %s is empty, cannot delete data\n",Name);
+		return 1;
+	}
+	Data *p=Head;
+	Data *pf=p;
+	while(p)
+	{		
+		if(index < p->NumOfCells)
+			if(len == p->LenOfCell[index])
+				if(memcmp(dat,p->Cells[index],len)==0)
+				{
+					char filebuff[PATH_MAX];
+					char filename[PATH_MAX];
+					memcpy(filebuff,p->Cells[0],p->LenOfCell[0]);
+					filebuff[p->LenOfCell[0]]=0;
+					sprintf(filename,"./database/%s/%s",Name,filebuff);
+					
+					int ret=remove(filename);
+					if(ret!=0)
+					{
+						printf("Delete file %s failed\n",filename);
+						return 2;
+					}
+					if(p==Head)
+					{
+						Head=p->Next;
+						delete pf;
+					}
+					else
+					{
+						pf->Next=p->Next;
+						delete p;
+					}
+					dbgprint("Delete data with key %s in Library %s\n",filebuff,Name);
+					return 0;
+				}
+		pf=p;
+		p=p->Next;
+	}
+	char *buff=new char[len+1];
+	memcpy(buff,dat,len);
+	buff[len]=0;
+	printf("Data %s not found in Library %s\n",buff,Name);
+	delete buff;
+	return 3;	
 }
 
 int Library::LoadLibrary()
@@ -734,18 +780,30 @@ public:
 	~Database();
 	int LoadDatabase();								//Load database to memory, return 0 if succeed
 	Library *SearchLibrary(const char *name);		//Search for library
-	int CreateLibrary(const char *name);			//Create a library with name and alloc space in disk, return 0 if succeed
+	
+	int DelLibrary(const char *name);				//Delete Library and delete directory on disk
+	
+	int DBCreateLib(const char *name);				//Create Library in multi-thread environment
 private:
 	void DeleteDatabase();
+	int CreateLibrary(const char *name);			//Create a library with name and alloc space in disk, return 0 if succeed
+	
 	Library *Head;
+	
+	pthread_mutex_t DatabaseMutex;
 };
 
 Database::Database():Head(NULL)
 {
+	if(pthread_mutex_init(&DatabaseMutex,NULL)!=0)
+	{
+		printf("Data base create mutex failed\n");	
+	}	
 }
 Database::~Database()
 {
 	DeleteDatabase();
+	pthread_mutex_destroy(&DatabaseMutex);
 }
 void Database::DeleteDatabase()
 {
@@ -827,24 +885,74 @@ int Database::LoadDatabase()
 	return 0;
 }
 
+int Database::DelLibrary(const char *name)
+{
+	Library *p=Head;
+	Library *pf=Head;
+	while(p)
+	{		
+		if(strcmp(name,p->Name)==0)
+		{
+			char rmlibpath[PATH_MAX];
+			sprintf(rmlibpath,"rm -r ./database/%s",p->Name);
+			//Delete library and all the data in the library		
+			system(rmlibpath);
+			if(p==Head)
+			{
+				Head=p->Next;
+				delete p;
+			}
+			else
+			{
+				pf->Next=p->Next;
+				delete p;
+			}
+			dbgprint("Delete Library %s\n",name);
+			return 0;
+		}
+		
+		pf=p;
+		p=p->Next;
+	}
+	printf("Library %s does not exist, cannot delete\n",name);
+	return 2;
+}
+
+
+int Database::DBCreateLib(const char *name)
+{
+	pthread_mutex_lock(&DatabaseMutex);		//Lock database
+	
+	int result=CreateLibrary(name);
+	
+	pthread_mutex_unlock(&DatabaseMutex);	//Unlock database
+	
+	return result;
+}
+
 int main()
 {
 	
 	Data d1;
-	d1.SetData(3,strlen("中文ABC")+1,"中文ABC",4,"123",3,"Ad");
+	d1.SetData(3,strlen("中文ABC"),"中文ABC",4,"123",3,"Ad");
 	int i;
+	/*
 	for(i=0;i<d1.NumOfCells;i++)
 	{
 		printf("[%d] len=%d dat=[%s]\n",i,d1.LenOfCell[i],d1.Cells[i]);
 	}
-	
+	*/
 	
 	Database db1;
 	
 	db1.LoadDatabase();
-	db1.CreateLibrary("test1");
+	db1.DBCreateLib("test1");
 	db1.SearchLibrary("test1")->AddData(d1);
 	
+	db1.SearchLibrary("test1")->DelData(0,5,"12345");
+	//db1.SearchLibrary("test1")->DelData(0,strlen("中文ABC"),"中文ABC");
+	
+	db1.DelLibrary("test1");
 	
 	return 0;
 }
