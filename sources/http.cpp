@@ -210,7 +210,7 @@ int Http::GetHtmCmd()
 		
 		if((result=mydb.DBGetAllValue(libname,x,y))<=0)
 		{
-			printf("Access database failed");
+			dbgprint("Access database failed");
 			GetWeb();
 			return 2;
 		}

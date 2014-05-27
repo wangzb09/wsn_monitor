@@ -30,7 +30,7 @@ void *thread_usr(void *arg)
 	while(1)
 	{
 		cin>>str;
-		if(!strcmp(str,"e"))
+		if(!strcmp(str,"exit"))
 		{
 			close(sock_listen);
 			printf("exit\n");
@@ -123,31 +123,3 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-
-
-int main_t()
-{
-	
-	Data d1;
-	d1.SetData(3,strlen("中文ABC"),"中文ABC",4,"123",3,"Ad");
-	int i;
-	/*
-	for(i=0;i<d1.NumOfCells;i++)
-	{
-		printf("[%d] len=%d dat=[%s]\n",i,d1.LenOfCell[i],d1.Cells[i]);
-	}
-	*/
-	/*
-	Database db1;
-	
-	db1.LoadDatabase();
-	db1.DBCreateLib("test1");
-	db1.SearchLibrary("test1")->AddData(d1);
-	
-	db1.SearchLibrary("test1")->DelData(0,5,"12345");
-	//db1.SearchLibrary("test1")->DelData(0,strlen("中文ABC"),"中文ABC");
-	
-	//db1.DelLibrary("test1");
-	*/
-	return 0;
-}
