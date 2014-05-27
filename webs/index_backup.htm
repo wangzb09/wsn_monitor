@@ -10,20 +10,14 @@
 <h1 align=center>Welcome to Wireless Sensor Network System of NICS!</h1>
 
 <form name="input" action="htmcmd" method="get">
-Username:&nbsp;<input type="text" name="user" value="sensor1" />
-<input type="hidden" name="app" value="temperature" />
-<input type="hidden" name="arg1" value="2" />
-<input type="hidden" name="arg2" value="0" />
-<input type="hidden" name="arg3" value="0" />
-<input type="submit" value="登录" />
+Username
+<br /> 
+User1&nbsp;<input type="text" name="user" />
+<br />
+User2&nbsp;<input type="text" name="User1" />
+<br />
+<input type="submit" value="提交" />
 </form>
-
-<p align=center>
-温度曲线<br />
-</p>
-<p align>
-登录后查看<br />
-</p>
 
 <canvas id=Figure1Canvas width=800 height=450></canvas>
 
@@ -41,22 +35,23 @@ function DrawFigure()
 	var snapx=60;
 	var snapy=50;
 	var snaplen=10;
-	var dtime=2;
+	var time0=120;
+	var dtime=1;
 	var val0=0;
 	var dval=0.1;
-	var i;
-	
-	var time0=120;	
-	/*
-	var dat=new Array(26,26);
-	for(i=0;i<width;i++)
+
+	var dat=new Array(1,2,3,4,5,6);
+
+	for(i=4;i<100;i++)
 	{
-		dat[i]=26;	
+		dat[i]=i+40;
+
+	
 	}
-	*/
+
 	context.strokeStyle="#808080";
 
-
+	var i;
 	context.moveTo(space,height-space); 
 	context.lineTo(width-space,height-space);
 	context.moveTo(space,height-space); 
@@ -94,7 +89,7 @@ function DrawFigure()
 	context.strokeStyle="#0000FF";
 	for(i=0;i<width-space*2;i++)
 	{
-		context.lineTo(space+i,height-space-(dat[i]/dval));
+		context.lineTo(space+i,dat[i]);
 	}
 	context.stroke();  
 	context.closePath();
@@ -103,6 +98,73 @@ function DrawFigure()
 DrawFigure();
 </script>
 
+
+<form name="input" action="/test.asp" method="post" encType=multipart/form-data>
+Filename
+<br /> 
+User1&nbsp;<input type="file" name="user1" />
+<br />
+User2&nbsp;<input type="file" name="user2" />
+<br />
+User3&nbsp;<input type="text" name="user3" />
+<br />
+<input type="submit" value="提交" />
+</form>
+
+<form name="input" action="/index.htm" method="post">
+Username
+<br /> 
+User1&nbsp;<input type="text" name="user" />
+<br />
+User2&nbsp;<input type="text" name="user1" />
+<br />
+<input type="submit" value="提交" />
+</form>
+
+<form>
+First name: 
+<input type="text" name="firstname" />
+<br />
+Last name: 
+<input type="text" name="lastname" />
+
+
+</form>
+
+<form>
+<input type="checkbox" name="bike" />
+I have a bike
+<br />
+<input type="checkbox" name="car" />
+I have a car
+<br />
+<input type="radio" name="sex" value="male" /> Male
+<br />
+<input type="radio" name="sex" value="female" /> Female
+</form>
+
+<table border="1">
+<tr>
+<th colspan="3">表格</th>
+</tr>
+<tr>
+<th>Heading</th>
+<th colspan="2">Another Heading</th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td>row 1, cell 2</td>
+<td rowspan="2">row 1, cell 3</td>
+</tr>
+<tr>
+<td>row 2, cell 1</td>
+<td>row 2, cell 2</td>
+</tr>
+</table>
+<p>
+Hello, This is the default web page.
+你好，这是默认页面。
+</p>
 <p align="center">
 Copyright &copy;2014 Wang Zhibo<br />
 E-mail:wangzhibo09@gmail.com

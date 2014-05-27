@@ -1,0 +1,55 @@
+
+	context.strokeStyle="#808080";
+
+	context.moveTo(space,height-space); 
+	context.lineTo(width-space,height-space);
+	context.moveTo(space,height-space); 
+	context.lineTo(space,space);
+
+
+	for(i=space;i<width-space;i+=snapx)
+	{
+		context.moveTo(i,height-space);
+		context.lineTo(i,height-space-snaplen);
+		
+		var time=time0+dtime*(i-space);
+		var hour=Math.floor(time/60);
+		var minute=time%60;
+		var txt="";
+		if(minute<10) txt=hour+":0"+minute;
+		else txt=hour+":"+minute;
+		context.fillText(txt,i,height-space*0.5);
+	}
+	for(i=height-space;i>space;i-=snapy)
+	{
+		context.moveTo(space,i);
+		context.lineTo(space+snaplen,i);
+		
+		var val=val0+dval*(height-space-i);
+		var vint=Math.floor(val);
+		var vfloat=(val*10)%10;
+		var txt=vint+"."+vfloat;
+		context.fillText(txt,space*0.2,i);
+	}
+	context.stroke();
+	context.closePath();
+	
+	context.beginPath();
+	context.strokeStyle="#0000FF";
+	for(i=0;i<width-space*2;i++)
+	{
+		context.lineTo(space+i,height-space-(dat[i]/dval));
+	}
+	context.stroke();  
+	context.closePath();
+}
+
+DrawFigure();
+</script>
+
+<p align="center">
+Copyright &copy;2014 Wang Zhibo<br />
+E-mail:wangzhibo09@gmail.com
+</p>
+</body>
+</html>

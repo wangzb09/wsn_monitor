@@ -1,0 +1,98 @@
+<!Doctype html>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+<title>Wireless Sensor Network System of NICS</title>
+</head>
+<body>
+
+<h1 align=center>Welcome to Wireless Sensor Network System of NICS!</h1>
+
+<form name="input" action="cmd" method="get">
+Username
+<br /> 
+User&nbsp;<input type="text" name="user" />
+<br />
+App&nbsp;<input type="text" name="app" />
+<br />
+arg1&nbsp;<input type="text" name="arg1" />
+<br />
+arg2&nbsp;<input type="text" name="arg2" />
+<br />
+arg3&nbsp;<input type="text" name="arg3" />
+<br />
+<input type="submit" value="提交" />
+</form>
+
+<form name="input" action="/test.asp" method="post" encType=multipart/form-data>
+Filename
+<br /> 
+User1&nbsp;<input type="file" name="user1" />
+<br />
+User2&nbsp;<input type="file" name="user2" />
+<br />
+User3&nbsp;<input type="text" name="user3" />
+<br />
+<input type="submit" value="提交" />
+</form>
+
+<form name="input" action="/index.htm" method="post">
+Username
+<br /> 
+User1&nbsp;<input type="text" name="user" />
+<br />
+User2&nbsp;<input type="text" name="user1" />
+<br />
+<input type="submit" value="提交" />
+</form>
+
+<form>
+First name: 
+<input type="text" name="firstname" />
+<br />
+Last name: 
+<input type="text" name="lastname" />
+
+
+</form>
+
+<form>
+<input type="checkbox" name="bike" />
+I have a bike
+<br />
+<input type="checkbox" name="car" />
+I have a car
+<br />
+<input type="radio" name="sex" value="male" /> Male
+<br />
+<input type="radio" name="sex" value="female" /> Female
+</form>
+
+<table border="1">
+<tr>
+<th colspan="3">表格</th>
+</tr>
+<tr>
+<th>Heading</th>
+<th colspan="2">Another Heading</th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td>row 1, cell 2</td>
+<td rowspan="2">row 1, cell 3</td>
+</tr>
+<tr>
+<td>row 2, cell 1</td>
+<td>row 2, cell 2</td>
+</tr>
+</table>
+<p>
+Hello, This is the default web page.
+你好，这是默认页面。
+</p>
+<p align="center">
+Copyright &copy;2014 Wang Zhibo<br />
+E-mail:wangzhibo09@gmail.com
+</p>
+</body>
+</html>

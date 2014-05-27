@@ -1,0 +1,47 @@
+<!Doctype html>
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html;charset=utf-8">
+<!--meta http-equiv="refresh" content="1" -->
+<title>Wireless Sensor Network System of NICS</title>
+</head>
+<body>
+
+<h1 align=center>Welcome to Wireless Sensor Network System of NICS!</h1>
+
+<form name="input" action="htmcmd" method="get">
+Username:&nbsp;<input type="text" name="user" value="sensor1" />
+<input type="hidden" name="app" value="temperature" />
+<input type="hidden" name="arg1" value="2" />
+<input type="hidden" name="arg2" value="0" />
+<input type="hidden" name="arg3" value="0" />
+<input type="submit" value="登录" />
+</form>
+
+<p align=center>
+温度曲线<br />
+</p>
+
+<canvas id=Figure1Canvas width=800 height=450></canvas>
+
+<script type="text/javascript">
+function DrawFigure()
+{
+
+	var canvas=document.getElementById('Figure1Canvas');
+	var context=canvas.getContext('2d');
+	context.beginPath();
+
+	var width=800;
+	var height=450;
+	var space=30;
+	var snapx=60;
+	var snapy=50;
+	var snaplen=10;
+	var dval=0.1;
+	var dtime=2;
+	var val0=0;
+	
+	var i;
+	
+	
