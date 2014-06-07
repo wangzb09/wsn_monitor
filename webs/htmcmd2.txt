@@ -36,9 +36,16 @@
 	
 	context.beginPath();
 	context.strokeStyle="#0000FF";
-	for(i=0;i<width-space*2;i++)
+	context.moveTo(space+xdat[0],height-space-Math.floor(dat[0]/dval));
+	var lastxdat=0;
+	for(i=1;i<datlen;i++)
 	{
-		context.lineTo(space+i,height-space-(dat[i]/dval));
+		var newxdat=xdat[i]/dtime;
+		if(newxdat!=lastxdat)
+		{	
+			lastxdat=newxdat;
+			context.lineTo(space+newxdat,height-space-Math.floor(dat[i]/dval));
+		}
 	}
 	context.stroke();  
 	context.closePath();

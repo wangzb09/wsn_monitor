@@ -205,7 +205,7 @@ int Http::GetHtmCmd()
 	{
 	
 		int *x=new int[BUFFLEN*10];
-		int *y=new int[BUFFLEN*10];
+		float *y=new float[BUFFLEN*10];
 		int result;
 		
 		if((result=mydb.DBGetAllValue(libname,x,y))<=0)
@@ -219,33 +219,40 @@ int Http::GetHtmCmd()
 		minx=maxx=x[0];
 		
 		int x1[60*24];
-		int y1[60*24];
+		float y1[60*24];
 		
 		for(i=0;i<60*24;i++)
 		{
-			x1[i]=0;
+			x1[i]=-1;
 		}
 		for(i=0;i<result;i++)
 		{
 			if(x[i]>=0 &&x[i]<60*24)
 			{
-				x1[x[i]]=1;
+				x1[x[i]]=x[i];
 				y1[x[i]]=y[i];
 			}
 		}
 		for(i=0;i<60*24;i++)
-			if(x1[i]==1) break;
+			if(x1[i]>=0) break;
 		int start=i;
 		
 		char *hbuff=new char[BUFFLEN*10];
 		char tb[BUFFLEN];
-		sprintf(hbuff,"var time0=0\n var dat=new Array();\n");
+		sprintf(hbuff,"var time0=0\n var xdat=new Array();\n var dat=new Array();\n");
+		int datlen=0;
 		for(i=start;i<60*24;i++)
 		{
-			if(x1[i]==0) y1[i]=y1[i-1];
-			sprintf(tb,"dat[%d]=%d\n",i,y1[i]);
-			strcat(hbuff,tb);
+			//if(x1[i]==0) y1[i]=y1[i-1];
+			if(x1[i]>=0)
+			{
+				sprintf(tb,"xdat[%d]=%d\ndat[%d]=%.2f\n",datlen,x1[i],datlen,y1[i]);
+				strcat(hbuff,tb);
+				datlen++;
+			}
 		}
+		sprintf(tb,"var datlen=%d\n",datlen);
+		strcat(hbuff,tb);	
 			
 		FILE *fp1=fopen("webs/htmcmd1.txt","rb");
 		FILE *fp2=fopen("webs/htmcmd2.txt","rb");

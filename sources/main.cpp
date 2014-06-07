@@ -33,7 +33,7 @@ void *thread_usr(void *arg)
 		if(!strcmp(str,"exit"))
 		{
 			close(sock_listen);
-			printf("exit\n");
+			printf("Exit the program\n");
 			exit(0);
 		}
 	}

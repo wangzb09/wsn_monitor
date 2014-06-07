@@ -488,7 +488,7 @@ int Database::DBCreateLib(const char *name)
 	
 	return result;
 }
-int Database::DBGetAllValue(const char *libname,int *x,int *y)
+int Database::DBGetAllValue(const char *libname,int *x,float *y)
 {
 	int result=0;
 	
@@ -515,7 +515,7 @@ int Database::DBGetAllValue(const char *libname,int *x,int *y)
 			memcpy(buff,pdat->Cells[0],pdat->LenOfCell[0]);
 			buff[pdat->LenOfCell[0]]=0;
 			x[result]=atoi(buff);
-			y[result]=atoi(pdat->Cells[1]);
+			y[result]=atof(pdat->Cells[1]);
 			result++;
 			pdat=pdat->Next;		
 		}

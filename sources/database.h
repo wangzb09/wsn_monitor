@@ -53,7 +53,7 @@ public:
 	int DelLibrary(const char *name);				//Delete Library and delete directory on disk
 	int DBCreateLib(const char *name);				//Create Library in multi-thread environment
 	int DBAddData(const char *libname,const Data &dat);	//Add data to library, return 0 if succeed
-	int DBGetAllValue(const char *libname,int *x,int *y);	//Get all the data in library,return the value got
+	int DBGetAllValue(const char *libname,int *x,float *y);	//Get all the data in library,return the value got
 	
 private:
 	Library *SearchLibrary(const char *name);		//Search for library

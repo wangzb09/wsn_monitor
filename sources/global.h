@@ -2,7 +2,7 @@
 
 #include"database.h"
 
-//#define MYDBG
+#define MYDBG
 
 #ifdef MYDBG
 #define dbgprint(...) printf(__VA_ARGS__)
