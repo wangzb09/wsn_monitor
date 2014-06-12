@@ -36,8 +36,9 @@
 	
 	context.beginPath();
 	context.strokeStyle="#0000FF";
-	context.moveTo(space+xdat[0],height-space-Math.floor(dat[0]/dval));
-	var lastxdat=0;
+	var lastxdat=xdat[0]/dtime;
+	context.moveTo(space+lastxdat,height-space-Math.floor(dat[0]/dval));
+	
 	for(i=1;i<datlen;i++)
 	{
 		var newxdat=xdat[i]/dtime;
@@ -53,7 +54,7 @@
 
 DrawFigure();
 </script>
-
+</p>
 <p align="center">
 Copyright &copy;2014 Wang Zhibo<br />
 E-mail:wangzhibo09@gmail.com

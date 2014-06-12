@@ -8,7 +8,7 @@
 <body>
 
 <h1 align=center>Welcome to Wireless Sensor Network System of NICS!</h1>
-
+<center>
 <form name="input" action="htmcmd" method="get">
 Username:&nbsp;<input type="text" name="user" value="sensor1" />
 <input type="hidden" name="app" value="temperature" />
@@ -16,12 +16,21 @@ Username:&nbsp;<input type="text" name="user" value="sensor1" />
 <input type="hidden" name="arg2" value="0" />
 <input type="hidden" name="arg3" value="0" />
 <input type="submit" value="登录" />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 </form>
+</center>
+<p>
+<br />
+</p>
 
 <p align=center>
 温度曲线<br />
 </p>
-
+<p align=center>
 <canvas id=Figure1Canvas width=800 height=450></canvas>
 
 <script type="text/javascript">
